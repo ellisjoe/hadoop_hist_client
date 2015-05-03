@@ -93,7 +93,13 @@ class Task:
         self.update()
 
     def __str__(self):
-        to_json_str(self.raw)
+        return to_json_str(self.raw)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __getitem__(self, key):
+        return self.task[key]
 
     def update(self):
         self.raw = self.server.request(self.uri())
@@ -122,6 +128,9 @@ class Attempt:
     def __str__(self):
         return to_json_str(self.raw)
 
+    def __repr__(self):
+        return self.__str__()
+
     def update(self):
         self.raw = self.server.request(self.uri())
         self.attempt = self.raw['taskAttempt']
@@ -140,6 +149,9 @@ class Counters:
 
     def __str__(self):
         return to_json_str(self.counters)
+
+    def __repr__(self):
+        self.__str__()
 
     def __getitem__(self, key):
         return self.counters[key]
