@@ -34,24 +34,26 @@ class Jobs:
         return self.__str__()
 
     def __getitem__(self, index):
-        return self.jobs[index]
+        return self.to_job(self.jobs[index])
 
     def update(self):
         self.raw = self.server.request('/jobs')
-        jobs_dict = self.raw['jobs']['job']
-        self.jobs = [Job(self.server, job['id']) for job in jobs_dict]
+        self.jobs = self.raw['jobs']['job']
 
     def all(self):
-        return self.jobs
+        return [self.to_job(job) for job in self.jobs]
 
     def job_ids(self):
         return [job['id'] for job in self.jobs]
 
     def filter(self, key, value):
-        return [job for job in self.jobs if job[key] == value]
+        return [self.to_job(job) for job in self.jobs if job[key] == value]
 
     def fuzzy_filter(self, key, substring):
-        return [job for job in self.jobs if job[key].find(substring) >= 0]
+        return [self.to_job(job) for job in self.jobs if job[key].find(substring) >= 0]
+
+    def to_job(self, job):
+        return Job(self.server, job['id'])
 
 class Job:
 
