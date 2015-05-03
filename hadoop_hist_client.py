@@ -1,13 +1,6 @@
 import requests, json
 
-host = "node-1.hadoop-slow.ucare.emulab.net"
-port = "19888"
 pretty_print = True
-
-def jobHistoryRequest(uri):
-    url = "http://" + host + ":" + port + "/ws/v1/history/mapreduce"
-    r = requests.get(url + uri)
-    return r.json()
 
 def to_json_str(obj):
     if pretty_print:
@@ -15,21 +8,38 @@ def to_json_str(obj):
     else:
         return json.dumps(obj)
 
+class JobHistoryServer:
+
+    def __init__(self, host, port=19888):
+        self.host = host
+        self.port = port
+        self.url = "http://" + host + ":" + str(port) + "/ws/v1/history/mapreduce"
+
+    def request(self, uri):
+        return requests.get(self.url + uri).json()
+
+    def jobs(self):
+        return Jobs(self)
+
 class Jobs:
 
-    def __init__(self):
+    def __init__(self, jobHistoryServer):
+        self.server = jobHistoryServer
         self.update()
 
     def __str__(self):
         return to_json_str(self.raw)
 
+    def __repr__(self):
+        return self.__str__()
+
     def __getitem__(self, index):
         return self.jobs[index]
 
     def update(self):
-        self.raw = jobHistoryRequest('/jobs')
+        self.raw = self.server.request('/jobs')
         jobs_dict = self.raw['jobs']['job']
-        self.jobs = [Job(job['id']) for job in jobs_dict]
+        self.jobs = [Job(self.server, job['id']) for job in jobs_dict]
 
     def all(self):
         return self.jobs
@@ -37,9 +47,16 @@ class Jobs:
     def job_ids(self):
         return [job['id'] for job in self.jobs]
 
+    def filter(self, key, value):
+        return [job for job in self.jobs if job[key] == value]
+
+    def fuzzy_filter(self, key, substring):
+        return [job for job in self.jobs if job[key].find(substring) >= 0]
+
 class Job:
 
-    def __init__(self, job_id):
+    def __init__(self, jobHistoryServer, job_id):
+        self.server = jobHistoryServer
         self.job_id = job_id
         self.update()
 
@@ -49,24 +66,28 @@ class Job:
     def __str__(self):
         return to_json_str(self.raw)
 
+    def __repr__(self):
+        return self.__str__()
+
     def update(self):
-        self.raw = jobHistoryRequest(self.uri())
+        self.raw = self.server.request(self.uri())
         self.job = self.raw['job']
 
     def uri(self):
         return '/jobs/' + self.job_id
 
     def tasks(self):
-        tasks = jobHistoryRequest(self.uri() + '/tasks')['tasks']['task']
-        return [Task(self.job_id, task['id']) for task in tasks]
+        tasks = self.server.request(self.uri() + '/tasks')['tasks']['task']
+        return [Task(self.server, self.job_id, task['id']) for task in tasks]
 
     def counters(self):
-        counters = jobHistoryRequest(self.uri() + '/counters')
+        counters = self.server.request(self.uri() + '/counters')
         return Counters(counters)
 
 class Task:
 
-    def __init__(self, job_id, task_id):
+    def __init__(self, jobHistoryServer, job_id, task_id):
+        self.server = jobHistoryServer
         self.job_id = job_id
         self.task_id = task_id
         self.update()
@@ -75,23 +96,24 @@ class Task:
         to_json_str(self.raw)
 
     def update(self):
-        self.raw = jobHistoryRequest(self.uri())
+        self.raw = self.server.request(self.uri())
         self.task = self.raw['task']
 
     def uri(self):
         return '/jobs/' + self.job_id + '/tasks/' + self.task_id
 
     def counters(self):
-        counters = jobHistoryRequest(self.uri() + '/counters')
+        counters = self.server.request(self.uri() + '/counters')
         return Counters(counters)
 
     def attempts(self):
-        attempts = jobHistoryRequest(self.uri() + '/attempts')['taskAttempts']['taskAttempt']
-        return [Attempt(self.job_id, self.task_id, attempt['id']) for attempt in attempts]
+        attempts = self.server.request(self.uri() + '/attempts')['taskAttempts']['taskAttempt']
+        return [Attempt(self.server, self.job_id, self.task_id, attempt['id']) for attempt in attempts]
 
 class Attempt:
 
-    def __init__(self, job_id, task_id, attempt_id):
+    def __init__(self, jobHistoryServer, job_id, task_id, attempt_id):
+        self.server = jobHistoryServer
         self.job_id = job_id
         self.task_id = task_id
         self.attempt_id = attempt_id
@@ -101,14 +123,14 @@ class Attempt:
         return to_json_str(self.raw)
 
     def update(self):
-        self.raw = jobHistoryRequest(self.uri())
+        self.raw = self.server.request(self.uri())
         self.attempt = self.raw['taskAttempt']
 
     def uri(self):
         return '/jobs/' + self.job_id + '/tasks/' + self.task_id + '/attempts/' + self.attempt_id
 
     def counters(self):
-        counters = jobHistoryRequest(self.uri() + '/counters')
+        counters = self.server.request(self.uri() + '/counters')
         return Counters(counters)
 
 class Counters:
