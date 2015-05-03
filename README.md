@@ -7,6 +7,8 @@ Server.
 Quickstart
 ----------
 
+    from hadoop_hist_client import JobHistoryServer
+
     server = JobHistoryServer("hostname")
     jobs = server.jobs()
     filtered_jobs = jobs.filter('name', 'test_job')
