@@ -153,7 +153,7 @@ class Counters:
         return to_json_str(self.counters)
 
     def __repr__(self):
-        self.__str__()
+        return self.__str__()
 
     def __getitem__(self, key):
         return self.counters[key]
